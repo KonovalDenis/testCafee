@@ -1,0 +1,407 @@
+{% extends "base.html"%}
+{%load staticfiles %}
+{%block title%} {{title}} {% endblock title%}
+{% block CSS%}
+<link rel="stylesheet" type="text/css" href="{% static 'css/editTables.css' %}">
+{%endblock CSS%}
+{%block content%}
+
+{%if request.user.is_staff%}
+	<div id="cafeeRoom">
+		{% for table in tables %}
+			<div id = "table{{table.number}}" class = "table"># {{table.number}} <span>({{table.chairs_count}} chairs)</span></div>
+		{% endfor %}
+		
+			<input type="range" min="0" max="100" value="50" class="slider horizontal" id="rangePosX">
+			<input type="range" min="0" max="100" value="50" class="slider vertical" id="rangePosY">
+		
+	</div>
+	Для того чтобы отредактировать существующий стол, кликните по нему на плане.
+	<form id="uploadForm" action="/editTables/upload_tables" method="post">
+		{% csrf_token %}
+			<input type="hidden" name="tables" id="uploadData">
+			<input id = "updateData" type="submit" value="Загрузить созданый план ресторана в базу данных">
+		</form>
+
+	<!-- <button id="saveAll">Загрузить созданый план ресторана в базу данных</button> -->
+
+	<button id="addTable">Добавить новый стол</button>
+		<div id="addTableField">
+			<div id="buttonsCreate" style="display: flex;">
+				<button id="tableFix">Сохранить позицию и размер стола</button><br>
+				<button id="tableCancel">Отменить создание этого стола</button>
+			</div>
+			<div id="buttonsEdit" style="display: flex;">
+				<button id="tableSaveChanges">Сохранить изменения</button><br>
+				<button id="tableCancelChanges">Отменить изменения</button>
+			</div>
+ 			 <p>Координата по оси Х: <span id="posX"></span></p>
+ 			 <p>Координата по оси У: <span id="posY"></span></p>
+ 			 <input type="text" id="chairs" value = "2"> Количество стульев<br>
+
+ 			 <input type="radio" name="shape" value="rectangle" id = "rectangle" checked = "checked"> Rectangle<br>
+  			 <input type="radio" name="shape" value="oval"  id = "oval"> Oval<br>
+
+ 			 <p>Ширина стола: <span id="tableWidth"></span> <input type="range" min="1" max="50" value="8" class="slider" id="rangeTableWidth"> </p>
+ 			 <p>Длина стола: <span id="tableHeight"></span> <input type="range" min="1" max="50" value="8" class="slider" id="rangeTableHeight"> </p>
+ 			 
+ 			 
+		</div>
+<script>
+	{% for table in tables %}
+		if ({{table.shape}} == 0) document.getElementById("table"+{{table.number}}).style.borderRadius = "50%";
+		document.getElementById("table"+{{table.number}}).style.left = ({{table.pos_X}} - {{table.width}}/2) + "%";
+		document.getElementById("table"+{{table.number}}).style.top = ({{table.pos_y}} - {{table.height}}/2) + "%";
+		document.getElementById("table"+{{table.number}}).style.width = {{table.width}} + "%";
+		document.getElementById("table"+{{table.number}}).style.height = {{table.height}} + "%";
+		document.getElementById("table"+{{table.number}}).addEventListener("click", editTable);
+	{% endfor %}
+
+	var tablesNumbers = [];
+	var allTables = [];
+
+	var i = 1;
+
+	{% for table in tables %}
+	tablesNumbers.push(i);	
+	i += 1;
+	{% endfor %}
+	
+	for (var i = 0; i < tablesNumbers.length; i++) {
+		{% for table in tables %}
+			if ({{table.number}} == tablesNumbers[i]) {
+				var curData = {
+					number : ""+{{table.number}},
+					chairs_count : ""+{{table.chairs_count}},
+					shape : {{table.shape}},
+					width :{{table.width}} + "%",
+					height :{{table.height}} + "%",
+					pos_X : {{table.pos_X}} + "%",
+					pos_Y : {{table.pos_y}} + "%",
+				}
+				allTables.push(curData);
+			}
+				
+		{% endfor %}
+	}
+
+	if (allTables.length>0) {
+		document.getElementById("uploadData").value = JSON.stringify(allTables);
+	}
+	
+		document.getElementById("tableCancel").addEventListener("click", cancelTable); 
+
+		function cancelTable() {
+			currentTable = "";
+			currentTableData = {};
+			document.getElementById("cafeeRoom").lastChild.remove();
+			tablesNumbers.pop();
+
+			document.getElementById("addTableField").style.display = "none";
+			document.getElementById("addTable").style.display = "block";
+			document.getElementById("updateData").style.display = "block";
+
+			var divTables = document.getElementsByClassName("table");
+			for (var i = 0; i < divTables.length; i++) {
+				divTables[i].addEventListener("click", editTable)
+			}
+		}
+
+
+		document.getElementById("tableFix").addEventListener("click", fixTable); 
+
+		function fixTable() {
+
+			var newLeft = pureNumber(currentTableData.pos_X) - pureNumber(currentTableData.width)/2;
+			var newRight = pureNumber(currentTableData.pos_X) + pureNumber(currentTableData.width)/2;
+			var newTop = pureNumber(currentTableData.pos_Y) - pureNumber(currentTableData.height)/2;
+			var newBottom = pureNumber(currentTableData.pos_Y) + pureNumber(currentTableData.height)/2;
+
+			for (var i = 0; i < allTables.length; i++) {
+		
+					var oldLeft = pureNumber(allTables[i].pos_X) - pureNumber(allTables[i].width)/2;
+					var oldRight = pureNumber(allTables[i].pos_X) + pureNumber(allTables[i].width)/2;
+					var oldTop = pureNumber(allTables[i].pos_Y) - pureNumber(allTables[i].height)/2;
+					var oldBottom = pureNumber(allTables[i].pos_Y) + pureNumber(allTables[i].height)/2;
+
+					if ( 
+						( (oldLeft>=newLeft && oldLeft<=newRight) && 
+							( (oldTop>=newTop && oldTop<=newBottom) || (oldBottom>=newTop && oldBottom<=newBottom)  || (oldTop>=newTop && oldBottom<=newBottom) || (oldTop<=newTop && oldBottom>=newBottom)) ) 
+						||  
+						((oldRight>=newLeft && oldRight<=newRight) && 
+							( (oldTop>=newTop && oldTop<=newBottom) || (oldBottom>=newTop && oldBottom<=newBottom)  || (oldTop>=newTop && oldBottom<=newBottom) || (oldTop<=newTop && oldBottom>=newBottom))  )      
+					) {
+						alert ("Стол не может залезать на рядомстоящий стол! Вы можете уменьшить его, передвинуть с помощью ползунков слева и снизу от поля, либо отменить добавление данного стола. ");
+						return;
+					}
+				
+				
+			}
+
+
+			allTables.push(currentTableData);
+			currentTable = "";
+			currentTableData = {};
+			document.getElementById("uploadData").value = JSON.stringify(allTables);
+			document.getElementById("addTableField").style.display = "none";
+			document.getElementById("addTable").style.display = "block";
+			document.getElementById("updateData").style.display = "block";
+
+			var divTables = document.getElementsByClassName("table");
+			for (var i = 0; i < divTables.length; i++) {
+				divTables[i].addEventListener("click", editTable)
+			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+		document.getElementById("tableCancelChanges").addEventListener("click", cancelCahnges); 
+
+		function cancelCahnges() {
+			currentTable.style.width = allTables[element].width;
+			currentTable.style.height = allTables[element].height;
+			currentTable.style.left = pureNumber(allTables[element].pos_X) - pureNumber(allTables[element].width)/2 + "%";
+			currentTable.style.top = pureNumber(allTables[element].pos_Y) - pureNumber(allTables[element].height)/2 + "%";
+			currentTable.firstElementChild.innerHTML = " ("+allTables[element].chairs_count +" chairs)";
+
+			allTables[element].sahpe == 1 ? currentTable.style.borderRadius = "0px" : currentTable.style.borderRadius = "50%";
+			currentTable = "";
+			currentTableData = {};
+			element = "";
+			// document.getElementById("cafeeRoom").lastChild.remove();
+			// tablesNumbers.pop();
+
+
+			document.getElementById("addTableField").style.display = "none";
+			document.getElementById("addTable").style.display = "block";
+			document.getElementById("updateData").style.display = "block";
+
+			var divTables = document.getElementsByClassName("table");
+			for (var i = 0; i < divTables.length; i++) {
+				divTables[i].addEventListener("click", editTable);
+				divTables[i].style.backgroundColor = "green";
+			}
+		}
+
+
+
+
+
+
+		document.getElementById("tableSaveChanges").addEventListener("click", saveChanges); 
+
+		function saveChanges() {
+
+			var newLeft = pureNumber(currentTableData.pos_X) - pureNumber(currentTableData.width)/2;
+			var newRight = pureNumber(currentTableData.pos_X) + pureNumber(currentTableData.width)/2;
+			var newTop = pureNumber(currentTableData.pos_Y) - pureNumber(currentTableData.height)/2;
+			var newBottom = pureNumber(currentTableData.pos_Y) + pureNumber(currentTableData.height)/2;
+
+			for (var i = 0; i < allTables.length; i++) {
+				console.log(element);
+				if(element !=i) {
+					var oldLeft = pureNumber(allTables[i].pos_X) - pureNumber(allTables[i].width)/2;
+					var oldRight = pureNumber(allTables[i].pos_X) + pureNumber(allTables[i].width)/2;
+					var oldTop = pureNumber(allTables[i].pos_Y) - pureNumber(allTables[i].height)/2;
+					var oldBottom = pureNumber(allTables[i].pos_Y) + pureNumber(allTables[i].height)/2;
+
+					if ( 
+						( (oldLeft>=newLeft && oldLeft<=newRight) && 
+							( (oldTop>=newTop && oldTop<=newBottom) || (oldBottom>=newTop && oldBottom<=newBottom)  || (oldTop>=newTop && oldBottom<=newBottom) || (oldTop<=newTop && oldBottom>=newBottom)) ) 
+						||  
+						((oldRight>=newLeft && oldRight<=newRight) && 
+							( (oldTop>=newTop && oldTop<=newBottom) || (oldBottom>=newTop && oldBottom<=newBottom)  || (oldTop>=newTop && oldBottom<=newBottom) || (oldTop<=newTop && oldBottom>=newBottom))  )      
+					) {
+						alert ("Стол не может залезать на рядомстоящий стол! Вы можете уменьшить его, передвинуть с помощью ползунков слева и снизу от поля, либо отменить добавление данного стола. ");
+						return;
+					}
+				}
+				
+			}
+
+
+			allTables[element] = currentTableData;
+			currentTable = "";
+			currentTableData = {};
+			element = "";
+			document.getElementById("uploadData").value = JSON.stringify(allTables);
+			document.getElementById("addTableField").style.display = "none";
+			document.getElementById("addTable").style.display = "block";
+			document.getElementById("updateData").style.display = "block";
+
+
+			var divTables = document.getElementsByClassName("table");
+			for (var i = 0; i < divTables.length; i++) {
+				divTables[i].addEventListener("click", editTable);
+				divTables[i].style.backgroundColor = "green";
+			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		document.getElementById('rectangle').addEventListener("change", makeRectangle); 
+
+		function makeRectangle() {
+			if (this.checked == true) {
+				currentTable.style.borderRadius = "0px";
+				currentTableData.shape = 1;
+			}
+		}
+
+		document.getElementById('oval').addEventListener("change", makeOval);
+
+		function makeOval() {
+			if (this.checked == true) {
+				currentTable.style.borderRadius = "50%";
+				currentTableData.shape = 0;
+			}
+		}
+
+
+
+
+
+		document.getElementById('chairs').addEventListener("change", changeChairs) 
+
+		function changeChairs() {
+			if (this.value === "" || (typeof this.value === "string" && this.value.search(" ") >= 0) || isNaN(this.value) || +(this.value) < 1 || +(this.value) > 50) {
+				alert("Количество стульев это целое число от 1 до 50. Будьте внимательны!");
+				this.value = "2";
+			} else {
+				currentTableData.chairs_count = this.value;
+				currentTable.firstElementChild.innerHTML = " ("+this.value +" chairs)"
+			}
+		}
+
+
+
+
+
+	
+
+	var currentTable;
+
+	function pureNumber(percentMumber) {
+		return +percentMumber.split("%")[0];
+	}
+
+
+	
+	
+
+
+	function editTable() {
+		var divTables = document.getElementsByClassName("table");
+			for (var i = 0; i < divTables.length; i++) {
+				divTables[i].removeEventListener("click", editTable)
+			}
+
+		currentTable = this;
+		this.style.backgroundColor = "blue";
+		console.log(currentTable);
+
+		element = this.id[this.id.length-1] - 1;
+
+		currentTableData = JSON.parse(JSON.stringify(allTables[element]));
+
+		document.getElementById("buttonsCreate").style.display = "none";
+		document.getElementById("buttonsEdit").style.display = "block";
+		
+
+		document.getElementById("addTable").style.display = "none";
+		document.getElementById("updateData").style.display = "none";
+		document.getElementById("addTableField").style.display = "block";
+
+		document.getElementById("chairs").value = currentTableData.chairs_count;
+		currentTableData.shape === 1 ? document.getElementById("rectangle").checked = true : document.getElementById("oval").checked = true;
+
+		
+
+		
+		activateSliders();
+
+	} 
+
+
+	
+	document.getElementById("addTable").addEventListener("click", addTable);
+
+	function addTable () {
+
+
+		var divTables = document.getElementsByClassName("table");
+			for (var i = 0; i < divTables.length; i++) {
+				divTables[i].removeEventListener("click", editTable)
+			}
+
+		tablesNumbers.push(tablesNumbers.length +1);
+		document.getElementById("cafeeRoom").innerHTML += ("<div id = table" + (tablesNumbers.length) + " class = table> # "+ (tablesNumbers.length) +"<span chairs" + (tablesNumbers.length) + "> (2 chairs) </span> </div>");
+
+
+		currentTableData = {
+			number : tablesNumbers.length,
+			chairs_count : "2",
+			shape : 1,
+			width : '8%',
+			height : '8%',
+			pos_X : '54%',
+			pos_Y : '54%',
+		}
+
+		currentTable = document.getElementById("cafeeRoom").lastChild;
+		currentTable.style = "position: absolute; top: 50%; left: 50%; width: 8%; height: 8%;"
+		console.log(currentTable);
+
+
+		document.getElementById("buttonsCreate").style.display = "block";
+		document.getElementById("buttonsEdit").style.display = "none";
+
+
+
+		document.getElementById("addTable").style.display = "none";
+		document.getElementById("updateData").style.display = "none";
+		document.getElementById("addTableField").style.display = "block";
+
+		document.getElementById("chairs").value = currentTableData.chairs_count;
+		currentTableData.shape === 1 ? document.getElementById("rectangle").checked = true : document.getElementById("oval").checked = true;
+
+		
+
+		
+		activateSliders();
+
+		
+	}
+
+
+</script>
+<script src="{% static 'js/editTables.js' %}" type="text/javascript"></script>
+
+{% else %}
+У Вас нет прав доступа к этой странице. Пожалуйста обратитесь к администратору.
+{% endif %}
+
+{%endblock content%}

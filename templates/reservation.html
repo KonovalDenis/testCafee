@@ -1,0 +1,313 @@
+{% extends "base.html"%}
+{%load staticfiles %}
+{%block title%} {{title}} {% endblock title%}
+{% block CSS%}
+<link rel="stylesheet" type="text/css" href="{% static 'css/reservation.css' %}">
+{%endblock CSS%}
+{%block content%}
+
+
+
+<div id="information">
+	<div id = "formWrap">
+	<div id = "navigationButtons" class = "step1">
+		<button id="prevDay" class = "btn">Previous Day</button>
+		<button id = "today" class = "btn">today</button>
+		<button id="nextDay" class = "btn">Next Day</button>
+	</div>
+	<form id="uploadForm" action="/reservation/reserve_tables" method="post">
+		{% csrf_token %}
+			<input type="hidden" id="tablesForReservation" name = "tablesForReservation">
+
+			<input type="date" name="reserveDate" id="input1" class = "step1">
+
+			<div id = "instructionStep1" class = "instruction step1" >Ниже представлен план зала ресторана. Выберите интересующую Вас дату. Зеленым цветом обозначены столы свободные для бронирования на текущую дату. Для того чтобы забронировать стол нажмите на него.</div>
+			
+			<div id = "step2Wrap" class = "step2" style="display: none; justify-content: space-between;">
+			<input type="submit" value="Забронировать" id = "submit" style=" background-color: green; width: 30%" class = " btn">
+			<input required type="email" name = "email" id = "email" style="" class = "" placeholder="Enter Your e-mail">
+			<button id = "returnToSearch" class = " btn" style=" background-color: red; width: 30%">Отменить и вернуться к выбору даты</button>
+			</div>
+
+			<div id = "bookingInformation" class = "step2 instruction" style="display:none; text-align: center;">date: <span id = "date"></span>; table(s): <span id = "tables"></span> </div>
+
+			
+
+			
+
+			<div id = "instructionStep2" class = "instruction step2" style = "display: none;">Для того чтобы забронировать стол введите Ваш e-mail и нажмите кнопку "ЗАБРОНИРОВАТЬ". Нажмите на другие столы чтобы добавить их в список бронируемых. Повторное нажатие удалитстол из списка.</div>
+			
+		</form>
+		
+
+		
+
+	</div>
+</div>
+<div id="cafeeHall">
+	{% for table in tables %}
+	<div id = "{{table.number}}" class = "table"># {{table.number}} ({{table.chairs_count}} chairs)</div>
+	{% endfor %}
+</div>
+
+
+<script>
+	function pureNumber(percentMumber) {
+		return +percentMumber.split("%")[0];
+	}
+
+	var currentDate = new Date();
+	var currentYear = currentDate.getFullYear();
+	var currentMonth = currentDate.getMonth();
+	var currentDay = currentDate.getDate();
+	console.log(currentMonth);
+	currentMonth +=1;
+	currentMonth < 10 ? currentMonth = "0" + currentMonth : currentMonth;
+	currentDay < 10 ? currentDay = "0" + currentDay : currentDay;
+
+	currentDate = currentYear + "-" + currentMonth + "-" + currentDay;
+	console.log(currentDate);
+
+	{% for table in tables %}
+		if ({{table.shape}} == 0) document.getElementById({{table.number}}).style.borderRadius = "50%";
+		document.getElementById({{table.number}}).style.left = ({{table.pos_X}} - {{table.width}}/2) + "%";
+		document.getElementById({{table.number}}).style.top = ({{table.pos_y}} - {{table.height}}/2) + "%";
+		document.getElementById({{table.number}}).style.width = {{table.width}} + "%";
+		document.getElementById({{table.number}}).style.height = {{table.height}} + "%";
+	{% endfor %}
+
+
+	var arrayOfTablesForBooking = []
+
+	document.getElementById("input1").value = currentDate;
+
+	function showStep1() {
+		var step2Elements = document.getElementsByClassName("step2")
+			for (var i = 0; i < step2Elements.length; i++) {
+				step2Elements[i].style.display = "none"
+			}
+			var step1Elements = document.getElementsByClassName("step1")
+			for (var i = 0; i < step1Elements.length; i++) {
+				step1Elements[i].style.display = "block"
+			}
+			document.getElementById("navigationButtons").style.display = "flex";
+	}
+
+	function showStep2() {
+		var step1Elements = document.getElementsByClassName("step1")
+			for (var i = 0; i < step1Elements.length; i++) {
+				step1Elements[i].style.display = "none"
+			}
+			var step2Elements = document.getElementsByClassName("step2")
+			for (var i = 0; i < step2Elements.length; i++) {
+				step2Elements[i].style.display = "block"
+			}
+			document.getElementById("step2Wrap").style.display = "flex";
+	}
+	
+
+
+	
+	//функция для выбора свободного стола для бронировки или отмены выбора
+	function chooseTable() {
+		
+		var trigger = true;
+		for (var i = 0; i < arrayOfTablesForBooking.length; i++) {
+			if (arrayOfTablesForBooking[i] == this.id) {
+				arrayOfTablesForBooking.splice(i, 1);
+				trigger = false;
+				this.classList.remove("checked");
+			}
+		}
+		if (trigger) {
+			arrayOfTablesForBooking.push(this.id);
+			this.classList.add("checked");
+		}
+		console.log(arrayOfTablesForBooking);
+		//добавляем номера всех выбранных столов в форму для отправки на бронирование
+		document.getElementById("tablesForReservation").value = JSON.stringify(arrayOfTablesForBooking);
+		document.getElementById("tables").innerHTML = arrayOfTablesForBooking;
+		document.getElementById("date").innerHTML = beautifyDate(document.getElementById("input1").value);
+		if (arrayOfTablesForBooking.length > 0) {
+			showStep2();
+		} else {
+			showStep1();
+		}
+
+	}
+
+	document.getElementById("returnToSearch").addEventListener("click", cancelReservation)
+
+	function cancelReservation() {
+		showStep1();
+		showFreeTables();
+	}
+
+
+
+	document.getElementById("input1").addEventListener("input", showFreeTables);
+	var tempArray = [];
+
+	function showFreeTables() {
+		arrayOfTablesForBooking = [];
+		var temp = document.getElementsByClassName("table");
+		for (var i = 0; i < temp.length; i++) {
+			temp[i].classList.remove("booked");
+			temp[i].addEventListener("click", chooseTable);
+			temp[i].classList.remove("checked");
+		}
+		var checkDate = document.getElementById("input1").value
+		tempArray.push(checkDate);
+		console.log(tempArray);
+		$.ajax ({
+					type: "GET",
+					url : "table_status/",
+					data : {
+						"checkDate" : checkDate,
+					},
+					dataType : "text",
+					cache: false,
+					success: function(data) {
+						var bookedTablesID = (JSON.parse(data));
+						var tables = document.getElementsByClassName("table");
+						for (var i = 0; i <bookedTablesID.length; i++) {
+							for (var j = 0; j <tables.length; j++){
+								if (bookedTablesID[i] == tables[j].id) {
+									tables[j].classList.add("booked");
+									tables[j].removeEventListener("click", chooseTable);
+								}
+							}
+
+						}
+					}
+				});
+	}
+
+
+showFreeTables();
+
+
+document.getElementById("today").addEventListener("click", goToday);
+
+function goToday() {
+	document.getElementById("input1").value = currentDate;
+	showFreeTables();
+}
+
+
+
+document.getElementById("prevDay").addEventListener("click", goToPrevDay);
+
+function goToPrevDay() {
+	var now = document.getElementById("input1").value.split("-");
+	// console.log(now[0]);
+	// console.log(now[1]);
+	// console.log(now[2]);
+	var year = +now[0];
+	var month = +now[1];
+	var day = +now[2];
+	
+	day -= 1;
+	if (day<1) {
+		// if we go to previous month
+		month -= 1;
+		if (month < 1) {
+			// if we go to previous year
+			year -=1;
+			month = 12;
+			day = 31;
+		} else {
+			// previous month but still THIS year
+			if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) {
+				day = 31;
+			} else if (month == 4 || month == 6 || month == 9 || month == 11) {
+				day = 30
+			} else {
+				if ((year%4 == 0 && year%100 != 0) || year%400 == 0) {
+					day = 29;
+				} else {
+					day = 28;
+				}
+			}
+			
+		} 
+
+	}
+	if (day<10) day = "0"+day;
+	if (month<10) month = "0"+month;
+	now[0] = year;
+	now[1] = month;
+	now[2] = day;
+	document.getElementById("input1").value = now.join("-");
+	showFreeTables();
+}
+
+
+document.getElementById("nextDay").addEventListener("click", goToNextDay);
+
+function goToNextDay() {
+	var now = document.getElementById("input1").value.split("-");
+	// console.log(now[0]);
+	// console.log(now[1]);
+	// console.log(now[2]);
+	var year = +now[0];
+	var month = +now[1];
+	var day = +now[2];
+	
+	if ((day == 31 && (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10)) ||
+		(day == 30 && (month == 4 || month == 6 || month == 9 || month == 11)) ||
+		(day == 28 && month == 2 && (year%4 !=0 || year%4 == 0 && year%100 == 0 && year%400 !=0)) ||
+		(day == 29 && month == 2 && (year%4 == 0 && year%100 !=0) || year%400 == 0)) {
+		month+=1;
+		day = 1;
+	} else if (day == 31 && month == 12) {
+		day = 1;
+		month = 1;
+		year += 1;
+	} else {
+		day+=1;
+	}
+	if (day<10) day = "0"+day;
+	if (month<10) month = "0"+month;
+
+
+	now[0] = year;
+	now[1] = month;
+	now[2] = day;
+	document.getElementById("input1").value = now.join("-");
+	showFreeTables();
+}
+
+function beautifyDate(date) {
+		date = date.split("-")
+		if (date[1] == '1')
+			date[1] = " January "
+		if (date[1] == '2')
+			date[1] = " February "
+		if (date[1] == '3')
+			date[1] = " March "
+		if (date[1] == '4')
+			date[1] = " April "
+		if (date[1] == '5')
+			date[1] = " May "
+		if (date[1] == '6')
+			date[1] = " June "
+		if (date[1] == '7')
+			date[1] = " July "
+		if (date[1] == '8')
+			date[1] = " August "
+		if (date[1] == '9')
+			date[1] = " September "
+		if (date[1] == '10')
+			date[1] = " October "
+		if (date[1] == '11')
+			date[1] = " November "
+		if (date[1] == '12')
+			date[1] = " December "
+		return date[2] + date[1] + date[0]
+	}
+</script>
+
+
+
+{%endblock content%}

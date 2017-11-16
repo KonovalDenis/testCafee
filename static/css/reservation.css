@@ -1,0 +1,115 @@
+body {
+	 background-position: center;
+    background-size: cover;
+    background-image: url(" ../images/coffeehouse.jpg");
+  
+}
+
+#information {
+	
+	margin: 0 auto;
+	width: 98%;
+	height: 32vh;
+	
+}
+
+#cafeeHall {
+	position: relative;
+	margin: 0 auto;
+	width: 98%;
+	height: 65vh;
+	background-color: lightblue;
+	border: 1px solid black;
+}
+
+.table {
+	position: absolute;
+	font-size: 16px;
+	background-color: green;
+	color: white;
+	border: 1px solid black;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.table:hover {
+	cursor: pointer;
+}
+
+.booked {
+	cursor: auto;
+	background-color: lightgrey;
+}
+
+.checked {
+	background-color: red; 
+}
+
+#formWrap {
+	
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+#navigationButtons {
+	width: 50%;
+	display: flex;
+	justify-content: space-between;
+	margin-top: 1%;
+	margin-bottom: 1%;
+}
+
+
+input[type="date"]::-webkit-clear-button {
+    display: none;
+
+}
+
+#input1 {
+	width: 50%;
+	font-size: 25px;
+	margin-left: 25%;
+}
+
+#email {
+	width: 33%;
+	font-size: 25px;
+}
+
+.instruction {
+	width: 95%;
+	font-size: 16px;
+	margin: 0 auto;
+	color: white;
+	font-family: sans-serif;
+	margin-top: 1%;
+	padding: 1%;
+	border: 2px solid white;
+	background-color: rgba(78, 78, 78, 0.7);
+}
+
+.btn {
+  -webkit-border-radius: 0;
+  -moz-border-radius: 0;
+  border: 2px solid white;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 20px;
+  background: #373e42;
+  padding: 10px 20px 10px 20px;
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: #373a22;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#uploadForm {
+	width: 100%;
+
+}
